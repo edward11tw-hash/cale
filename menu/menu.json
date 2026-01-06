@@ -3,7 +3,7 @@
     "id": "egg-original",
     "category": "egg",
     "name": "原味雞蛋糕",
-    "enabled": false,
+    "enabled": true,
     "originalPrice": 80,
     "price": 50,
     "emoji": "🥚",
