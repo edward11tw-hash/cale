@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>菜單後台管理</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-wrap{ max-width:1100px; margin:0 auto; padding:18px; }
+    .admin-bar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin:12px 0; }
+    .admin-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+    .admin-table{ width:100%; border-collapse:separate; border-spacing:0 10px; }
+    .row{ background:rgba(255,255,255,.92); border:1px solid rgba(243,214,227,.95); border-radius:18px; }
+    .row td{ padding:10px; vertical-align:top; }
+    .row td:first-child{ border-top-left-radius:18px; border-bottom-left-radius:18px; }
+    .row td:last-child{ border-top-right-radius:18px; border-bottom-right-radius:18px; }
+    input[type="text"], input[type="number"], select{
+      width:100%; padding:10px 12px; border-radius:14px;
+      border:1px solid rgba(243,214,227,.95); background:#fff; outline:none;
+    }
+    .mini{ font-size:12px; color:var(--muted); }
+    .danger{ background:#fff; border:1px solid rgba(255,77,141,.35); color:#b0124f; padding:10px 12px; border-radius:14px; }
+    .right{ text-align:right; }
+    .pill{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      border:1px solid rgba(243,214,227,.95);
+      background: rgba(255,255,255,.75);
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">🛠️</div>
+      <div class="brand-text">
+        <h1>菜單後台</h1>
+        <p class="subtitle">修改後會寫回資料來源（客人端會同步）</p>
+      </div>
+    </div>
+    <div class="tools">
+      <span class="pill" id="apiMode">API：判斷中…</span>
+      <button class="ghost" id="btnReload" type="button">重新載入</button>
+      <button class="primary" id="btnSave" type="button">儲存</button>
+    </div>
+  </header>
+
+  <main class="admin-wrap">
+    <div class="admin-bar">
+      <div>
+        <div class="mini">Admin Token（第一次會問一次，存在本機瀏覽器）</div>
+        <button class="ghost" id="btnSetToken" type="button">設定 / 更換 Token</button>
+      </div>
+      <div class="admin-actions">
+        <button class="ghost" id="btnAdd" type="button">＋ 新增品項</button>
+        <button class="danger" id="btnDisableAll" type="button">全部下架（enabled=false）</button>
+      </div>
+    </div>
+
+    <div class="muted" id="status">載入中…</div>
+
+    <table class="admin-table" id="table"></table>
+  </main>
+
+  <script>
+    const $ = (s)=>document.querySelector(s);
+
+    // ✅ 自動判斷 API 位置：
+    // - Netlify 上線：/.netlify/functions/menu
+    // - 本機 server.py：/api/menu
+    const NETLIFY_FN = "/.netlify/functions/menu";
+    const LOCAL_API  = "/api/menu";
+    const API_BASE   = (location.hostname.endsWith("netlify.app") || location.hostname.endsWith("netlify.com"))
+      ? NETLIFY_FN
+      : LOCAL_API;
+
+    $("#apiMode").textContent = `API：${API_BASE}`;
+
+    let menu = [];
+    const statusEl = $("#status");
+    const table = $("#table");
+
+    function getToken(){
+      return localStorage.getItem("ADMIN_TOKEN") || "";
+    }
+    function ensureToken(){
+      let t = getToken();
+      if(!t){
+        const hint = (API_BASE === NETLIFY_FN)
+          ? "請輸入 Admin Token（Netlify 環境變數 ADMIN_TOKEN）"
+          : "請輸入 Admin Token（本機 server.py 的 ADMIN_TOKEN）";
+        t = prompt(hint) || "";
+        if(t) localStorage.setItem("ADMIN_TOKEN", t);
+      }
+      return t;
+    }
+
+    function uidFromName(name){
+      return (name||"item")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g,"-")
+        .replace(/[^\w\-]+/g,"")
+        .slice(0,24) + "-" + Date.now().toString(36);
+    }
+
+    function rowHTML(item, idx){
+      return `
+        <tr class="row" data-idx="${idx}">
+          <td style="width:130px">
+            <div class="mini">上架</div>
+            <label class="chk" style="margin-top:6px">
+              <input type="checkbox" data-k="enabled" ${item.enabled !== false ? "checked":""}>
+              <span>${item.enabled !== false ? "上架中" : "已下架"}</span>
+            </label>
+            <div class="mini" style="margin-top:10px">分類</div>
+            <select data-k="category">
+              <option value="egg" ${item.category==="egg"?"selected":""}>egg（雞蛋糕）</option>
+              <option value="waffle" ${item.category==="waffle"?"selected":""}>waffle（鬆餅）</option>
+            </select>
+          </td>
+
+          <td>
+            <div class="mini">名稱</div>
+            <input type="text" data-k="name" value="${item.name||""}">
+            <div class="mini" style="margin-top:10px">描述</div>
+            <input type="text" data-k="desc" value="${item.desc||""}">
+            <div class="mini" style="margin-top:10px">emoji</div>
+            <input type="text" data-k="emoji" value="${item.emoji||""}">
+          </td>
+
+          <td style="width:160px">
+            <div class="mini">售價 price</div>
+            <input type="number" data-k="price" value="${Number(item.price||0)}" min="0" step="1">
+            <div class="mini" style="margin-top:10px">原價 originalPrice（可空）</div>
+            <input type="number" data-k="originalPrice" value="${item.originalPrice ?? ""}" min="0" step="1">
+          </td>
+
+          <td style="width:220px">
+            <div class="mini">tags（用逗號分隔）</div>
+            <input type="text" data-k="tags" value="${Array.isArray(item.tags)?item.tags.join(","):""}">
+            <div class="mini" style="margin-top:10px">addons（用逗號分隔）</div>
+            <input type="text" data-k="addons" value="${Array.isArray(item.addons)?item.addons.join(","):""}">
+          </td>
+
+          <td style="width:120px" class="right">
+            <div class="mini">id</div>
+            <div style="word-break:break-all; font-size:12px">${item.id||""}</div>
+            <button class="ghost" type="button" data-del style="margin-top:10px">刪除</button>
+          </td>
+        </tr>
+      `;
+    }
+
+    function render(){
+      table.innerHTML = menu.map((it, i)=>rowHTML(it, i)).join("");
+      statusEl.textContent = `目前 ${menu.length} 筆（含下架）`;
+
+      table.querySelectorAll("tr.row").forEach(tr=>{
+        const idx = Number(tr.dataset.idx);
+
+        tr.querySelectorAll("[data-k]").forEach(el=>{
+          el.addEventListener("input", ()=>{
+            const k = el.dataset.k;
+
+            if(k === "enabled"){
+              menu[idx].enabled = el.checked;
+              render();
+              return;
+            }
+
+            if(k === "price"){
+              menu[idx].price = Number(el.value||0);
+              return;
+            }
+
+            if(k === "originalPrice"){
+              const v = el.value;
+              if(v === "" || v === null) delete menu[idx].originalPrice;
+              else menu[idx].originalPrice = Number(v||0);
+              return;
+            }
+
+            if(k === "tags" || k === "addons"){
+              const arr = (el.value||"").split(",").map(s=>s.trim()).filter(Boolean);
+              if(arr.length) menu[idx][k] = arr;
+              else delete menu[idx][k];
+              return;
+            }
+
+            if(k === "category"){
+              menu[idx].category = el.value;
+              return;
+            }
+
+            menu[idx][k] = el.value;
+          });
+        });
+
+        tr.querySelector("[data-del]").addEventListener("click", ()=>{
+          if(confirm("確定刪除這個品項？（會從資料中移除）")){
+            menu.splice(idx,1);
+            render();
+          }
+        });
+      });
+    }
+
+    async function apiLoad(){
+      statusEl.textContent = "載入中…";
+      const res = await fetch(API_BASE, { cache:"no-store" });
+      if(!res.ok) throw new Error("API 讀取失敗：" + res.status);
+      menu = await res.json();
+
+      // 保底
+      menu.forEach(it=>{
+        if(typeof it.enabled === "undefined") it.enabled = true;
+        if(!it.id) it.id = uidFromName(it.name||"item");
+      });
+
+      render();
+    }
+
+    async function apiSave(){
+      const token = ensureToken();
+      if(!token) return alert("沒有 token，無法儲存");
+
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": token
+        },
+        body: JSON.stringify(menu, null, 2)
+      });
+
+      if(!res.ok){
+        const t = await res.text().catch(()=> "");
+        throw new Error("儲存失敗：" + res.status + " " + t);
+      }
+
+      alert("已儲存 ✅");
+    }
+
+    $("#btnReload").addEventListener("click", ()=> apiLoad().catch(e=>alert(e.message)));
+    $("#btnSave").addEventListener("click", ()=> apiSave().catch(e=>alert(e.message)));
+    $("#btnSetToken").addEventListener("click", ()=>{
+      const t = prompt("輸入新的 Admin Token") || "";
+      if(t) localStorage.setItem("ADMIN_TOKEN", t);
+    });
+
+    $("#btnAdd").addEventListener("click", ()=>{
+      const name = prompt("品項名稱？") || "";
+      if(!name) return;
+      const id = uidFromName(name);
+
+      menu.unshift({
+        id,
+        enabled: true,
+        category: "egg",
+        name,
+        price: 0,
+        desc: "",
+        emoji: "🥚",
+        tags: [],
+        addons: [],
+        tip: ""
+      });
+      render();
+    });
+
+    $("#btnDisableAll").addEventListener("click", ()=>{
+      if(confirm("確定全部下架？")){
+        menu.forEach(it=> it.enabled = false);
+        render();
+      }
+    });
+
+    apiLoad().catch(e=>alert(e.message));
+  </script>
+</body>
+</html>

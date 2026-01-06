@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>線上菜單｜雞蛋糕 & 鬆餅</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">🥚</div>
+      <div class="brand-text">
+        <h1>線上菜單</h1>
+        <p class="subtitle">只供瀏覽 · 不提供線上結帳</p>
+      </div>
+    </div>
+
+    <div class="tools">
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜尋品項（例如：起司、抹茶、蜂蜜）" />
+        <button id="clearSearch" class="ghost" type="button">清除</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-card">
+        <h2>今天想吃哪一種？</h2>
+        <p>點品項可看詳細與加料建議。</p>
+
+<div class="chips sticky-chips" role="tablist" aria-label="今天想吃哪種">
+  <button class="chip active" data-category="all" role="tab" aria-selected="true">全部</button>
+  <button class="chip" data-category="egg" role="tab" aria-selected="false">雞蛋糕</button>
+  <button class="chip" data-category="waffle" role="tab" aria-selected="false">鬆餅</button>
+</div>
+      </div>
+
+      <div class="notice">
+        <div class="notice-icon">ℹ️</div>
+        <div class="notice-text">
+          <div class="notice-title">提醒</div>
+          <div class="notice-desc">本頁僅供客人查看菜單，無付款、無結帳、無外送功能。餐點現點現做時間約3-5分鐘，</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid-head">
+      <h3 id="resultTitle">全部品項</h3>
+      <div class="count" id="resultCount">0 items</div>
+    </section>
+
+    <section id="menuSections" aria-live="polite"></section>
+
+    <footer class="footer">
+      <div class="footer-box">
+        <div>🕒 營業時間：每日 12:00–20:30（可自行修改）</div>
+        <div>📞 電話：0900-000-000（可自行修改）</div>
+		<div>📍 地址：台中市太平區太平路272號</div>
+        <div class="muted">© 線上菜單 Demo（展示用）</div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h4 id="modalTitle">品項</h4>
+          <div class="modal-sub" id="modalSub">分類 · 標籤</div>
+        </div>
+        <button id="closeModal" class="icon-btn" aria-label="關閉">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-left">
+          <div class="imgbox" id="modalEmoji" aria-hidden="true">🧇</div>
+          <div class="price" id="modalPrice">NT$ 0</div>
+          <div class="desc" id="modalDesc">描述</div>
+
+          <div class="badges" id="modalBadges"></div>
+        </div>
+
+        <div class="modal-right">
+          <div class="panel">
+            <div class="panel-title">展示用選項（不會結帳）</div>
+
+            <div class="field">
+              <label>甜度</label>
+              <div class="seg">
+                <button class="seg-btn" data-group="sweet" data-value="正常">正常</button>
+                <button class="seg-btn" data-group="sweet" data-value="少糖">少糖</button>
+                <button class="seg-btn" data-group="sweet" data-value="無糖">無糖</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>口感/溫度</label>
+              <div class="seg">
+                <button class="seg-btn" data-group="temp" data-value="熱熱吃">熱熱吃</button>
+                <button class="seg-btn" data-group="temp" data-value="放涼也讚">放涼也讚</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>加料（展示）</label>
+              <div class="addons" id="modalAddons"></div>
+            </div>
+
+            <div class="tip" id="modalTip">小建議：—</div>
+          </div>
+
+          <div class="panel subtle">
+            <div class="panel-title">過敏資訊（可改）</div>
+            <ul class="bullets">
+              <li>本產品可能含：蛋、奶、麩質（小麥）。</li>
+              <li>同一環境亦可能接觸堅果類原料。</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="ghost" id="copyText" type="button">複製品項資訊</button>
+        <button class="primary" id="closeModal2" type="button">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
